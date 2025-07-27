@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asistente de Alquiler de Coche</title>
+  <style>
+    /* Estilos básicos para una interfaz limpia y usable */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    header {
+      background-color: #2e86de;
+      color: white;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 1rem;
+    }
+    .progress {
+      height: 20px;
+      background-color: #e0e0e0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .progress-bar {
+      height: 100%;
+      background-color: #2e86de;
+      border-radius: 10px;
+    }
+    .step {
+      background-color: white;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .step h2 {
+      margin-top: 0;
+    }
+    .task {
+      display: flex;
+      align-items: flex-start;
+      margin: 0.5rem 0;
+    }
+    .task input[type="checkbox"] {
+      margin-right: 0.5rem;
+    }
+    .faq-section {
+      background-color: white;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .faq-category {
+      margin-bottom: 1rem;
+    }
+    .faq-category button {
+      width: 100%;
+      text-align: left;
+      background-color: #e9f2fc;
+      border: none;
+      padding: 0.75rem;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .faq-category-content {
+      padding: 0.5rem 1rem;
+      display: none;
+    }
+    .faq-item {
+      margin-bottom: 0.75rem;
+    }
+    .faq-item h4 {
+      margin: 0;
+      cursor: pointer;
+    }
+    .faq-answer {
+      margin: 0.25rem 0 0.5rem 0;
+      display: none;
+    }
+    .search-input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .reset-button {
+      margin-top: 1rem;
+      background-color: #d9534f;
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .reset-button:hover {
+      background-color: #c9302c;
+    }
+    .highlight {
+      background-color: yellow;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Asistente de Alquiler de Coche</h1>
+    <p>Guía interactiva para preparar, recoger y devolver tu vehículo</p>
+  </header>
+  <div id="root" class="container"></div>
+  <!-- Cargar React y ReactDOM desde CDN para una aplicación estática -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Cargar Babel para transformar JSX en el navegador -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Aplicación escrita en JSX -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    /**
+     * Datos de pasos y tareas.
+     * Cada paso contiene una lista de tareas con claves únicas para guardar el progreso en localStorage.
+     */
+    const stepsData = [
+      {
+        title: 'Preparación antes de reservar',
+        description: 'Asegúrate de tener toda la documentación y comprender los términos antes de confirmar tu reserva.',
+        tasks: [
+          { key: 'prep-documentacion', title: 'Reúne pasaporte/DNI, permiso de conducir válido (mínimo 12 meses) y tarjeta de crédito/débito física a tu nombre; activa pagos internacionales y conoce tu PIN.' },
+          { key: 'prep-franquicia', title: 'Comprende la franquicia: 1200€ por daños y 1800€ por robo (doble en Campania y Puglia). Decide si contratarás cobertura adicional para reducirla.' },
+          { key: 'prep-documentos-extras', title: 'Verifica si necesitas permiso internacional de conducir, prueba de domicilio y billete de vuelta con fecha y hora.' },
+          { key: 'prep-tarjeta', title: 'Asegúrate de que tu tarjeta tiene fondos suficientes para cubrir la franquicia, aunque el depósito sea de 0,01€.' },
+          { key: 'prep-extras', title: 'Decide si alquilarás extras (silla infantil, GPS, WiFi, cadenas de nieve) y conoce sus costes y posibles penalizaciones.' },
+          { key: 'prep-oneway', title: 'Decide si devolverás el coche en otra oficina; reserva correctamente para evitar altas tarifas por trayecto único.' },
+        ],
+      },
+      {
+        title: 'Reserva y confirmación',
+        description: 'Configura tu reserva con los datos correctos y confirma tu vale.',
+        tasks: [
+          { key: 'reserva-vuelo', title: 'Indica tu número de vuelo/tren al menos 3 días antes del alquiler.' },
+          { key: 'reserva-horarios', title: 'Comprueba fechas y horas de recogida y devolución; ten en cuenta períodos de gracia y posibles cargos por retraso.' },
+          { key: 'reserva-combustible', title: 'Comprende la política de combustible (depósito al mismo nivel) y planifica repostar antes de devolver.' },
+          { key: 'reserva-fronteras', title: 'Consulta las restricciones de cruce de fronteras y notifica si planeas salir de Italia.' },
+          { key: 'reserva-vale', title: 'Descarga o imprime tu vale de confirmación y guarda copias digitales.' },
+        ],
+      },
+      {
+        title: 'Recogida del vehículo',
+        description: 'En la oficina, presenta documentos, revisa el coche y firma el contrato.',
+        tasks: [
+          { key: 'recogida-doc', title: 'Presenta DNI/pasaporte, permiso de conducir, tarjeta de crédito, prueba de domicilio, billete de vuelta y vale.' },
+          { key: 'recogida-inspeccion', title: 'Inspecciona el exterior e interior del coche, toma fotos/vídeos de cualquier daño y hazlo constar en el contrato.' },
+          { key: 'recogida-combustible', title: 'Verifica el nivel de combustible y el kilometraje en el contrato.' },
+          { key: 'recogida-extras', title: 'Comprueba que todos los extras solicitados están presentes y en buen estado.' },
+          { key: 'recogida-asistencia', title: 'Pregunta por los números de asistencia en carretera y protocolo de accidentes o averías.' },
+          { key: 'recogida-contrato', title: 'Lee detenidamente el contrato antes de firmar y resuelve tus dudas con el personal.' },
+        ],
+      },
+      {
+        title: 'Durante el alquiler',
+        description: 'Conduce responsablemente y cuida el vehículo.',
+        tasks: [
+          { key: 'durante-normas', title: 'Cumple las normas de circulación: no beber, no fumar, usar cinturones, no remolcar ni participar en carreras; respeta límites de velocidad.' },
+          { key: 'durante-combustible', title: 'Reposta con el combustible correcto y guarda los recibos para evitar reclamaciones.' },
+          { key: 'durante-limpieza', title: 'Mantén el vehículo limpio y cuida los accesorios para evitar cargos de limpieza y penalizaciones.' },
+          { key: 'durante-ampliacion', title: 'Si necesitas más tiempo, contacta al punto de recogida con antelación para ampliar el contrato.' },
+          { key: 'durante-accidente', title: 'En caso de accidente o avería, contacta a la empresa y, si procede, a la policía; documenta todo.' },
+        ],
+      },
+      {
+        title: 'Devolución del vehículo',
+        description: 'Devuelve el coche a tiempo y en buen estado para evitar cargos adicionales.',
+        tasks: [
+          { key: 'devolucion-repostar', title: 'Reposta hasta el mismo nivel y guarda el comprobante para evitar el cargo de repostaje.' },
+          { key: 'devolucion-limpiar', title: 'Limpia el coche y retira todas tus pertenencias; devuelve accesorios y documentos.' },
+          { key: 'devolucion-tiempo', title: 'Llega a la hora acordada; evita penalizaciones y días extra.' },
+          { key: 'devolucion-fotos', title: 'Toma fotos del vehículo al devolverlo para documentar su estado.' },
+          { key: 'devolucion-deposito', title: 'Solicita la devolución/desbloqueo del depósito y revisa tu estado de cuenta posteriormente.' },
+        ],
+      },
+      {
+        title: 'Después del alquiler',
+        description: 'Sigue estos pasos una vez finalizado tu viaje.',
+        tasks: [
+          { key: 'postalquiler-revision', title: 'Revisa que no haya cargos imprevistos en tu tarjeta; ten en cuenta variaciones de divisa.' },
+          { key: 'postalquiler-multas', title: 'Si recibes una multa, págala y asume el cargo administrativo de 25 €.' },
+          { key: 'postalquiler-reclamos', title: 'Si detectas un cargo erróneo, reclama a la empresa de alquiler y/o a la aseguradora presentando la documentación necesaria.' },
+          { key: 'postalquiler-archivos', title: 'Conserva todas las facturas, contratos y correos electrónicos hasta cerrar el proceso.' },
+        ],
+      },
+    ];
+
+    /**
+     * Datos de preguntas frecuentes.
+     * Se agrupan por categorías para facilitar la navegación y permitir el filtrado.
+     */
+    const faqData = [
+      {
+        category: 'Documentación y requisitos',
+        faqs: [
+          {
+            question: '¿Qué documentos debo presentar al recoger el vehículo?',
+            answer: 'Necesitarás pasaporte o documento nacional de identidad, un permiso de conducir válido con al menos 12 meses de antigüedad y una tarjeta de crédito o débito a tu nombre con fondos suficientes. También deberás presentar tu vale de confirmación y prueba de viaje de retorno (tarjeta de embarque, billete de tren o ferry con fecha y hora)【280217514197664†L110-L160】.',
+          },
+          {
+            question: '¿Se aceptan permisos de conducir digitales?',
+            answer: 'No. La empresa de alquiler no acepta permisos de conducir digitales. Si tu permiso fue renovado y solo muestra la fecha de renovación, deberás acreditar la fecha de expedición original【280217514197664†L141-L144】.',
+          },
+          {
+            question: '¿Necesito un permiso internacional para conducir?',
+            answer: 'Cada conductor debe presentar un permiso válido; si no está en caracteres latinos, tendrás que llevar un permiso internacional de conducir o una traducción certificada. Se recomienda a los conductores de fuera de Europa llevar también un permiso internacional【280217514197664†L150-L153】.',
+          },
+          {
+            question: '¿Qué se considera prueba de domicilio?',
+            answer: 'Debes llevar un documento que acredite tu domicilio (por ejemplo, una carta oficial). Además, se exige presentar un billete de vuelta con fecha y hora de salida como prueba de viaje【280217514197664†L154-L160】.',
+          },
+          {
+            question: '¿Cuál es la edad mínima para conducir?',
+            answer: 'Para este coche la edad mínima es de 19 años【280217514197664†L169-L170】. Las restricciones de edad y cargos asociados se aplican también a conductores adicionales【280217514197664†L354-L355】.',
+          },
+        ],
+      },
+      {
+        category: 'Pago y Depósito',
+        faqs: [
+          {
+            question: '¿Qué tarjetas se aceptan para el depósito?',
+            answer: 'Se aceptan tarjetas físicas de crédito o débito a nombre del conductor principal: MasterCard, Visa, American Express y UnionPay. No se aceptan tarjetas de prepago, recargables, virtuales ni emitidas por neobancos【280217514197664†L110-L137】【280217514197664†L637-L649】.',
+          },
+          {
+            question: '¿Cuál es el importe del depósito de seguridad?',
+            answer: 'Se bloquearán 0,01 € en tu tarjeta al recoger el coche. Además, pueden solicitar depósitos adicionales para combustible y extras【280217514197664†L183-L190】.',
+          },
+          {
+            question: '¿Qué es la franquicia por daños y robo?',
+            answer: 'La franquicia es la cantidad máxima que tendrás que pagar antes de que el seguro cubra el resto. Para este vehículo, la franquicia por daños es de 1.200 € y la franquicia por robo es de 1.800 €. En Campania y Puglia se duplica la franquicia por robo【280217514197664†L475-L488】.',
+          },
+          {
+            question: '¿Cuándo se desbloquea el depósito?',
+            answer: 'El depósito se desbloquea al finalizar el alquiler siempre que devuelvas el vehículo en las condiciones acordadas【280217514197664†L183-L187】. Las fluctuaciones de divisa pueden hacer que el importe reembolsado varíe【280217514197664†L627-L635】.',
+          },
+          {
+            question: '¿Qué requisitos debe cumplir mi tarjeta?',
+            answer: 'La tarjeta debe llevar el nombre completo del conductor, tener 16 dígitos, fecha de vencimiento y número de seguridad. Debe estar activada para pagos internacionales y debes conocer el PIN para preautorizar el depósito【280217514197664†L125-L133】【280217514197664†L637-L648】.',
+          },
+        ],
+      },
+      {
+        category: 'Seguros y Coberturas',
+        faqs: [
+          {
+            question: '¿Qué coberturas básicas están incluidas en el alquiler?',
+            answer: 'Se incluyen una cobertura parcial por colisión (CDW) y una cobertura en caso de robo, válidas solo si se cumplen los términos del contrato【280217514197664†L40-L47】.',
+          },
+          {
+            question: '¿Qué no cubre la cobertura parcial por colisión?',
+            answer: 'La CDW no cubre ventanas, ruedas, interior, chasis, llaves, antenas, gato, triángulos y chalecos de seguridad, limpiaparabrisas, tapón de gasolina, fundas de maletas ni otros componentes fijos o móviles【280217514197664†L494-L500】.',
+          },
+          {
+            question: '¿Puedo contratar una cobertura adicional?',
+            answer: 'Sí. En la oficina puedes contratar una cobertura adicional para reducir o eliminar la franquicia y cubrir neumáticos, parabrisas u otras piezas excluidas【280217514197664†L200-L203】. Este contrato será directamente con la empresa de alquiler【280217514197664†L205-L206】.',
+          },
+          {
+            question: '¿Qué cubre el seguro Premium?',
+            answer: 'El seguro Premium reembolsa la franquicia pactada y los gastos reclamados por la empresa de alquiler, cubre la pérdida de llaves y los costes de reparación por repostar combustible equivocado. La indemnización máxima por siniestro y periodo de seguro es de 20.000 €【382158547421466†L32-L51】.',
+          },
+          {
+            question: '¿Qué exclusiones tiene el seguro Premium?',
+            answer: 'No cubre la pérdida o daño de bienes personales ni daños a terceros, daños en carreras, daños intencionados o el transporte comercial. Tampoco cubre sillas infantiles o equipos especiales ni reclamaciones fuera del periodo de seguro【382158547421466†L74-L87】.',
+          },
+        ],
+      },
+      {
+        category: 'Combustible y Kilometraje',
+        faqs: [
+          {
+            question: '¿Cuál es la política de combustible?',
+            answer: 'La política es “depósito al mismo nivel”: debes devolver el coche con el mismo nivel de combustible que tenía al recogerlo. Si no lo haces, se te cobrará el combustible faltante y un cargo por servicio de 50,38 €【280217514197664†L235-L247】.',
+          },
+          {
+            question: '¿Cómo evitar cargos de combustible?',
+            answer: 'Reposta justo antes de devolver el coche para que el nivel sea idéntico al de recogida y guarda el comprobante【280217514197664†L235-L247】【280217514197664†L510-L517】.',
+          },
+          {
+            question: '¿El kilometraje es ilimitado?',
+            answer: 'Sí, el alquiler incluye kilometraje ilimitado【280217514197664†L70-L71】. Si modificas la duración del alquiler, el número de kilómetros gratuitos podría cambiar【280217514197664†L71-L73】.',
+          },
+        ],
+      },
+      {
+        category: 'Conductores adicionales y Edad',
+        faqs: [
+          {
+            question: '¿Cuánto cuesta añadir conductores adicionales?',
+            answer: 'Cada conductor adicional cuesta 10,08 € al día, impuestos incluidos【280217514197664†L95-L97】.',
+          },
+          {
+            question: '¿Quién debe estar presente en la recogida?',
+            answer: 'El conductor principal debe estar presente durante la recogida y ser quien pague los importes necesarios【280217514197664†L90-L93】.',
+          },
+          {
+            question: '¿Se aplican las mismas restricciones a los conductores adicionales?',
+            answer: 'Sí. Las mismas restricciones de edad y los cargos se aplican a todos los conductores adicionales【280217514197664†L354-L355】.',
+          },
+        ],
+      },
+      {
+        category: 'Extras y Accesorios',
+        faqs: [
+          {
+            question: '¿Qué extras puedo contratar y cómo se pagan?',
+            answer: 'Puedes contratar extras como sillas infantiles, GPS, WiFi o cadenas de nieve. Algunos están incluidos, otros se pagan al reservar y otros se pagan al recoger el coche【280217514197664†L320-L326】.',
+          },
+          {
+            question: '¿Qué penalizaciones hay por pérdida de extras?',
+            answer: 'Las penalizaciones incluyen: chaleco reflectante (10 €), silla infantil o cadenas para nieve (100 €), llaves (250 €), GPS (250–550 €), WiFi portátil (hasta 550 €), documentos del coche (150 €) y matrícula (300 €)【280217514197664†L335-L352】【280217514197664†L610-L623】.',
+          },
+          {
+            question: '¿Quién coloca las sillas infantiles?',
+            answer: 'El personal de la oficina no instala sillas infantiles; debes colocarlas tú mismo【280217514197664†L332-L334】.',
+          },
+        ],
+      },
+      {
+        category: 'Recogida y Devolución',
+        faqs: [
+          {
+            question: '¿Qué sucede si llego tarde a la recogida?',
+            answer: 'Debes presentarte a la hora acordada. La sucursal esperará hasta 59 minutos tras la hora de reserva o la llegada del vuelo/tren. Si llegas fuera de horario, se aplicarán cargos de 30 € o 42 € según el caso【280217514197664†L449-L458】【280217514197664†L578-L584】.',
+          },
+          {
+            question: '¿Y si devuelvo el coche tarde?',
+            answer: 'Si entregas el vehículo después de la hora acordada, el seguro dejará de ser válido y se te cobrará un día extra de alquiler, además de una penalización【280217514197664†L591-L597】.',
+          },
+          {
+            question: '¿Puedo devolver el coche en otra oficina?',
+            answer: 'Sí, pero se aplican tarifas: 86,38 € en la Italia peninsular y Sicilia, 719,80 € en Cerdeña y 2879,00 € para devoluciones en países de la UE【280217514197664†L269-L276】. Sin autorización, la penalización es de 2.000 € más IVA【280217514197664†L563-L567】.',
+          },
+          {
+            question: '¿Qué debo revisar al recoger el coche?',
+            answer: 'Revisa exterior e interior, haz fotos de cualquier daño y asegúrate de que quede registrado en el contrato【280217514197664†L678-L682】.',
+          },
+          {
+            question: '¿Qué debo hacer al devolverlo?',
+            answer: 'Reposta hasta el mismo nivel, limpia el coche, devuelve accesorios y documentos, llega a tiempo y toma fotos como prueba. Solicita la devolución del depósito【280217514197664†L599-L608】【280217514197664†L591-L597】【280217514197664†L233-L235】.',
+          },
+        ],
+      },
+      {
+        category: 'Sanciones y Cargos adicionales',
+        faqs: [
+          {
+            question: '¿Qué cargos administrativos existen?',
+            answer: 'La empresa cobra un cargo administrativo por daños o robo y un cargo de inmovilización del vehículo en caso de accidente【280217514197664†L225-L229】. Además, cobra 25 € por gestionar multas de tráfico【280217514197664†L539-L548】.',
+          },
+          {
+            question: '¿Cómo se gestionan las multas de tráfico y peajes?',
+            answer: 'Eres responsable de todos los cargos por peajes, congestión y multas. Se aplicará un cargo administrativo adicional de 25 €【280217514197664†L79-L80】【280217514197664†L539-L548】.',
+          },
+          {
+            question: '¿Qué ocurre si pierdo llaves o documentos?',
+            answer: 'La sustitución de las llaves cuesta 250 €, los documentos del coche cuestan 150 € y la matrícula 300 €【280217514197664†L335-L352】【280217514197664†L610-L623】.',
+          },
+        ],
+      },
+      {
+        category: 'Restricciones de Uso y Viaje',
+        faqs: [
+          {
+            question: '¿Puedo cruzar fronteras con el coche?',
+            answer: 'Puedes viajar a cualquier país de la UE, Noruega, Suiza y Reino Unido sin cargo adicional siempre que informes al proveedor【280217514197664†L281-L283】【280217514197664†L288-L296】. Si dejas el coche en otro país sin autorización, la penalización es de 2.000 € más IVA【280217514197664†L563-L567】. La cobertura se anula si lo transportas en barco o ferry【280217514197664†L569-L570】.',
+          },
+          {
+            question: '¿Hay restricciones en islas o ferris?',
+            answer: 'Sí. La cobertura se anula si llevas el coche en barco o ferry y si viajas entre islas debes devolverlo en la oficina original【280217514197664†L570-L572】【280217514197664†L293-L295】.',
+          },
+          {
+            question: '¿Qué actividades están prohibidas con el coche?',
+            answer: 'No puedes fumar, transportar animales sin contratar “BAU THE WAY”, remolcar, participar en competiciones, circular por carreteras sin pavimentar, transportar mercancías peligrosas ni alquilar el coche a otros【280217514197664†L373-L403】【280217514197664†L686-L690】.',
+          },
+          {
+            question: '¿Qué es el servicio “BAU THE WAY”?',
+            answer: 'Es un servicio opcional para viajar con mascotas que cuesta 49,90 €; incluye la limpieza del coche al final del alquiler. Si no lo contratas y se encuentran pelos o daños, pagarás un cargo adicional【280217514197664†L303-L306】.',
+          },
+        ],
+      },
+    ];
+
+    /**
+     * Función auxiliar para resaltar palabras clave en los resultados de búsqueda.
+     */
+    function highlight(text, query) {
+      if (!query) return text;
+      const regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      return text.split(regex).map((part, i) => {
+        if (part.toLowerCase() === query.toLowerCase()) {
+          return <span key={i} className="highlight">{part}</span>;
+        }
+        return part;
+      });
+    }
+
+    /**
+     * Componente principal de la aplicación.
+     */
+    function App() {
+      // Estado para gestionar qué tareas están completadas.
+      const [taskState, setTaskState] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem('rentalCarTasks'));
+          return saved || {};
+        } catch {
+          return {};
+        }
+      });
+
+      // Estado para la búsqueda en las preguntas frecuentes.
+      const [faqQuery, setFaqQuery] = useState('');
+
+      // Persistir el estado de las tareas en localStorage cada vez que cambie.
+      useEffect(() => {
+        localStorage.setItem('rentalCarTasks', JSON.stringify(taskState));
+      }, [taskState]);
+
+      // Calcular progreso completado.
+      const totalTasks = stepsData.reduce((sum, step) => sum + step.tasks.length, 0);
+      const completedTasks = Object.values(taskState).filter(Boolean).length;
+      const progressPercent = Math.round((completedTasks / totalTasks) * 100);
+
+      // Alternar el estado de una tarea concreta.
+      const toggleTask = (key) => {
+        setTaskState(prev => ({
+          ...prev,
+          [key]: !prev[key],
+        }));
+      };
+
+      // Reiniciar el progreso y limpiar localStorage.
+      const resetProgress = () => {
+        setTaskState({});
+        localStorage.removeItem('rentalCarTasks');
+      };
+
+      // Filtrar FAQ según la consulta.
+      const filteredFaqData = faqData.map(cat => {
+        const filteredFaqs = cat.faqs.filter(faq => {
+          const lower = (faq.question + ' ' + faq.answer).toLowerCase();
+          return lower.includes(faqQuery.toLowerCase());
+        });
+        return { ...cat, faqs: filteredFaqs };
+      }).filter(cat => cat.faqs.length > 0);
+
+      return (
+        <div>
+          <div className="progress">
+            <div className="progress-bar" style={{ width: progressPercent + '%' }}></div>
+          </div>
+          <p>{completedTasks} de {totalTasks} tareas completadas ({progressPercent}%)</p>
+
+          {stepsData.map((step, idx) => (
+            <div key={idx} className="step">
+              <h2>{step.title}</h2>
+              <p>{step.description}</p>
+              {step.tasks.map(task => (
+                <div key={task.key} className="task">
+                  <input
+                    type="checkbox"
+                    id={task.key}
+                    checked={!!taskState[task.key]}
+                    onChange={() => toggleTask(task.key)}
+                  />
+                  <label htmlFor={task.key}>{task.title}</label>
+                </div>
+              ))}
+            </div>
+          ))}
+
+          <button className="reset-button" onClick={resetProgress}>Reiniciar progreso</button>
+
+          <div className="faq-section">
+            <h2>Preguntas frecuentes</h2>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Buscar..."
+              value={faqQuery}
+              onChange={(e) => setFaqQuery(e.target.value)}
+            />
+            {faqQuery ? (
+              filteredFaqData.length > 0 ? (
+                filteredFaqData.map((cat, i) => (
+                  <div key={i} className="faq-category">
+                    <h3>{cat.category}</h3>
+                    {cat.faqs.map((faq, j) => (
+                      <div key={j} className="faq-item">
+                        <h4>{highlight(faq.question, faqQuery)}</h4>
+                        <p>{highlight(faq.answer, faqQuery)}</p>
+                      </div>
+                    ))}
+                  </div>
+                ))
+              ) : (
+                <p>No hay coincidencias para “{faqQuery}”.</p>
+              )
+            ) : (
+              faqData.map((cat, i) => (
+                <FaqCategory key={i} category={cat.category} faqs={cat.faqs} />
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /**
+     * Componente para una categoría de FAQ con opción de colapsar y expandir.
+     */
+    function FaqCategory({ category, faqs }) {
+      const [open, setOpen] = useState(false);
+      return (
+        <div className="faq-category">
+          <button onClick={() => setOpen(!open)}>{open ? '▼ ' : '► '}{category}</button>
+          <div className="faq-category-content" style={{ display: open ? 'block' : 'none' }}>
+            {faqs.map((faq, idx) => (
+              <FaqItem key={idx} question={faq.question} answer={faq.answer} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    /**
+     * Componente para una pregunta individual con respuesta desplegable.
+     */
+    function FaqItem({ question, answer }) {
+      const [open, setOpen] = useState(false);
+      return (
+        <div className="faq-item">
+          <h4 onClick={() => setOpen(!open)}>{open ? '▼ ' : '► '}{question}</h4>
+          <div className="faq-answer" style={{ display: open ? 'block' : 'none' }}>
+            <p>{answer}</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Montar la aplicación en el contenedor raíz.
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
